@@ -4126,9 +4126,11 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 			gh->x_origin = x;
 			first_x = false;
 		}
-		pos->y = -y + 5;
+		const size_t yhalf = can->h / 6;
+		pos->y = -y + yhalf;
 		if (oy == pos->y) {
-			pos->x = - (x - (ox * 2) - 100);
+			const size_t xhalf = can->w / 2;
+			pos->x = - (x - (ox * 2) - xhalf);
 		} else {
 			pos->x = gh->x_origin - x + 50;
 		}
