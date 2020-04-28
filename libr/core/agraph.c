@@ -7,7 +7,6 @@
 
 static int mousemode = 0;
 static int disMode = 0;
-static int minx = 0;
 static int discroll = 0;
 static bool graphCursor = false;
 static const char *mousemodes[] = {
@@ -2059,17 +2058,6 @@ static void set_layout(RAGraph *g) {
 
 	backedge_info (g);
 
-	// compute the minimum x location
-	minx = ST32_MAX;
-	for (i = 0; i < g->n_layers; i++) {
-		for (j = 0; j < g->layers[i].n_nodes; j++) {
-			RANode *n = get_anode (g->layers[i].nodes[j]);
-			if (minx == ST32_MAX || n->x < minx) {
-				minx = n->x;
-			}
-		}
-	}
-
 	/* free all temporary structures used during layout */
 	for (i = 0; i < g->n_layers; i++) {
 		free (g->layers[i].nodes);
@@ -4077,12 +4065,25 @@ static const char *strstr_xy(const char *p, const char *s, int *x, int *y) {
 	return d;
 }
 
+static char *get_graph_string(RCore *core) {
+	int c = r_config_get_i (core->config, "scr.color");
+	int u = r_config_get_i (core->config, "scr.utf8");
+	r_config_set_i (core->config, "scr.color", 0);
+	r_config_set_i (core->config, "scr.utf8", 0);
+	r_core_visual_graph (core, NULL, NULL, false);
+	char *s = strdup (r_cons_get_buffer ());
+	r_cons_reset ();
+	r_config_set_i (core->config, "scr.color", c);
+	r_config_set_i (core->config, "scr.utf8", u);
+	return s;
+}
+
 static void nextword(RCore *core, RConsCanvas *can, const char *word) {
-	r_return_if_fail (core && can && word);
+	r_return_if_fail (core && core->graph && can && word);
 	if (!*word) {
 		return;
 	}
-	RCoreGraphHits *gh = &core->ghits;
+	RCoreGraphHits *gh = &core->graph->ghits;
 	if (gh->word_list && gh->old_word && !strcmp (word, gh->old_word)) {
 		RPosition *pos = r_list_get_n (gh->word_list, gh->word_nth);
 		if (pos) {
@@ -4100,18 +4101,7 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 		r_list_free (gh->word_list);
 		gh->word_list = r_list_newf (free);
 	}
-	char *s;
-	{
-		int c = r_config_get_i (core->config, "scr.color");
-		int u = r_config_get_i (core->config, "scr.utf8");
-		r_config_set_i (core->config, "scr.color", 0);
-		r_config_set_i (core->config, "scr.utf8", 0);
-		r_core_visual_graph (core, NULL, NULL, false);
-		s = strdup (r_cons_get_buffer ());
-		r_cons_reset ();
-		r_config_set_i (core->config, "scr.color", c);
-		r_config_set_i (core->config, "scr.utf8", u);
-	}
+	char *s = get_graph_string (core);
 	int x, y;
 	const char *p = s;
 	r_cons_clear00 ();

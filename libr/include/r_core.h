@@ -243,13 +243,6 @@ typedef struct r_core_tasks_t {
 	bool oneshot_running;
 } RCoreTaskScheduler;
 
-typedef struct r_core_graph_hits_t {
-	char *old_word ;
-	RList *word_list;
-	int word_nth;
-	int x_origin;
-} RCoreGraphHits;
-
 typedef struct r_core_t {
 	RBin *bin;
 	RConfig *config;
@@ -352,7 +345,6 @@ typedef struct r_core_t {
 	int (*r_main_ragg2)(int argc, const char **argv);
 	int (*r_main_rasm2)(int argc, const char **argv);
 	int (*r_main_rax2)(int argc, const char **argv);
-	RCoreGraphHits ghits;
 } RCore;
 
 // maybe move into RAnal
