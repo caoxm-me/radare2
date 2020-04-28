@@ -4128,9 +4128,9 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 		}
 		pos->y = -y + 5;
 		if (oy == pos->y) {
-			pos->x = - (x - (ox*2) - 100);
+			pos->x = - (x - (ox * 2) - 100);
 		} else {
-			pos->x = gh->x_origin - x;
+			pos->x = gh->x_origin - x + 50;
 		}
 		oy = pos->y;
 		ox = pos->x;
