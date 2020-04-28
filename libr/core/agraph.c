@@ -2059,18 +2059,16 @@ static void set_layout(RAGraph *g) {
 
 	backedge_info (g);
 
-	//restore_original_edges (g);
-	//remove_dummy_nodes (g);
-		minx = 9999999;
-		for (i = 0; i < g->n_layers; i++) {
-			for (j = 0; j < g->layers[i].n_nodes; j++) {
-				RANode *n = get_anode (g->layers[i].nodes[j]);
-			//	eprintf  ("%d %d \n", n->x, n->y);
-				if (n->x < minx) {
-					minx = n->x;
-				}
+	// compute the minimum x location
+	minx = ST32_MAX;
+	for (i = 0; i < g->n_layers; i++) {
+		for (j = 0; j < g->layers[i].n_nodes; j++) {
+			RANode *n = get_anode (g->layers[i].nodes[j]);
+			if (minx == ST32_MAX || n->x < minx) {
+				minx = n->x;
 			}
 		}
+	}
 
 	/* free all temporary structures used during layout */
 	for (i = 0; i < g->n_layers; i++) {
@@ -3339,8 +3337,6 @@ static void agraph_update_title(RCore *core, RAGraph *g, RAnalFunction *fcn) {
 		"%s[0x%08"PFMT64x "]> %s # %s ",
 		graphCursor? "(cursor)": "",
 		fcn->addr, a? a->title: "", sig);
-	// debugging purposes
-	new_title = r_str_appendf (new_title, " (%d,%d)", g->can->sx, g->can->sy);
 	r_agraph_set_title (g, new_title);
 	free (new_title);
 	free (sig);
@@ -3559,12 +3555,6 @@ static int agraph_refresh(struct agraph_refresh_data *grd) {
 	if (r_config_get_i (core->config, "scr.scrollbar")) {
 		r_core_print_scrollbar (core);
 	}
-
-#if 0
-	r_cons_gotoxy (2,2);
-	r_cons_printf ("((%d %d)) (( %d %d ))", g->can->sx, g->can->sy, g->can->w, g->can->h);
-	r_cons_flush ();
-#endif
 
 	return res;
 }
@@ -4094,7 +4084,7 @@ static int x_origin = 0;
 
 static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 	RListIter *iter;
-	if (word_list && !strcmp (word, old_word)) {
+	if (word_list && old_word && !strcmp (word, old_word)) {
 		RPosition *pos = r_list_get_n (word_list, word_nth);
 		if (pos) {
 			word_nth++;
@@ -4462,6 +4452,7 @@ R_API int r_core_visual_graph(RCore *core, RAGraph *g, RAnalFunction *_fcn, int 
 				" \"            - toggle graph.refs\n"
 				" #            - toggle graph.hints\n"
 				" /            - highlight text\n"
+				" \\            - scroll the graph canvas to the next highlight location\n"
 				" |            - set cmd.gprompt\n"
 				" _            - enter hud selector\n"
 				" >            - show function callgraph (see graph.refs)\n"

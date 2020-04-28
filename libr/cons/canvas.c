@@ -228,7 +228,7 @@ static char *canvas_string(RConsCanvas *c, size_t pos) {
 	int ox = c->x;
 	int oy = c->y;
 	for (y = oy; y < c->h; y ++) {
-		for (x = y==oy?ox:0; x < c->w; x ++) {
+		for (x = (y == oy)? ox: 0; x < c->w; x ++) {
 			char ch = c->b[y][x];
 			const char *rune = r_cons_get_rune ((const ut8)ch);
 			if (rune) {
@@ -267,13 +267,8 @@ R_API void r_cons_canvas_nextword(RConsCanvas *c, const char *word) {
 		return;
 	}
 	char *p = s;
-	int y = 0;
 	while (*p) {
 		if (*p == '\n') {
-			y++;
-			if (y == -c->sy) {
-				break;
-			}
 			break;
 		}
 		p++;
