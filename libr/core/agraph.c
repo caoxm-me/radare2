@@ -4077,19 +4077,19 @@ static const char *strstr_xy(const char *p, const char *s, int *x, int *y) {
 	return d;
 }
 
-static char *old_word = NULL;
-static RList *word_list = NULL;
-static int word_nth = 0;
-static int x_origin = 0;
-
 static void nextword(RCore *core, RConsCanvas *can, const char *word) {
-	if (word_list && old_word && !strcmp (word, old_word)) {
-		RPosition *pos = r_list_get_n (word_list, word_nth);
+	r_return_if_fail (core && can && word);
+	if (!*word) {
+		return;
+	}
+	RCoreGraphHits *gh = &core->ghits;
+	if (gh->word_list && gh->old_word && !strcmp (word, gh->old_word)) {
+		RPosition *pos = r_list_get_n (gh->word_list, gh->word_nth);
 		if (pos) {
-			word_nth++;
+			gh->word_nth++;
 		} else {
-			word_nth = 0;
-			pos = r_list_get_n (word_list, word_nth);
+			gh->word_nth = 0;
+			pos = r_list_get_n (gh->word_list, gh->word_nth);
 		}
 		if (pos) {
 			can->sx = pos->x;
@@ -4097,11 +4097,8 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 		}
 		return;
 	} else {
-		r_list_free (word_list);
-		word_list = r_list_newf (free);
-	}
-	if (!*word) {
-		return;
+		r_list_free (gh->word_list);
+		gh->word_list = r_list_newf (free);
 	}
 	char *s;
 	{
@@ -4136,26 +4133,26 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 			break;
 		}
 		if (first_x) {
-			x_origin = x;
+			gh->x_origin = x;
 			first_x = false;
 		}
 		pos->y = -y + 5;
 		if (oy == pos->y) {
 			pos->x = - (x - (ox*2) - 100);
 		} else {
-			pos->x = x_origin - x;
+			pos->x = gh->x_origin - x;
 		}
 		oy = pos->y;
 		ox = pos->x;
-		r_list_append (word_list, pos);
+		r_list_append (gh->word_list, pos);
 		p = a + 1;
 		count++;
 		if (count > MAX_COUNT) {
 			break;
 		}
 	}
-	free (old_word);
-	old_word = strdup (word);
+	free (gh->old_word);
+	gh->old_word = strdup (word);
 	return nextword (core, can, word);
 }
 
