@@ -7,6 +7,7 @@
 
 static int mousemode = 0;
 static int disMode = 0;
+static int minx = 0;
 static int discroll = 0;
 static bool graphCursor = false;
 static const char *mousemodes[] = {
@@ -2060,11 +2061,22 @@ static void set_layout(RAGraph *g) {
 
 	//restore_original_edges (g);
 	//remove_dummy_nodes (g);
+		minx = 9999999;
+		for (i = 0; i < g->n_layers; i++) {
+			for (j = 0; j < g->layers[i].n_nodes; j++) {
+				RANode *n = get_anode (g->layers[i].nodes[j]);
+			//	eprintf  ("%d %d \n", n->x, n->y);
+				if (n->x < minx) {
+					minx = n->x;
+				}
+			}
+		}
 
 	/* free all temporary structures used during layout */
 	for (i = 0; i < g->n_layers; i++) {
 		free (g->layers[i].nodes);
 	}
+
 	free (g->layers);
 	r_list_free (g->long_edges);
 	r_list_free (g->back_edges);
@@ -2413,7 +2425,7 @@ cleanup:
 
 /* build the RGraph inside the RAGraph g, starting from the Call Graph
  * information */
-static int get_cgnodes(RAGraph *g, RCore *core, RAnalFunction *fcn) {
+static bool get_cgnodes(RAGraph *g, RCore *core, RAnalFunction *fcn) {
 	RAnalFunction *f = r_anal_get_fcn_in (core->anal, core->offset, 0);
 	RANode *node, *fcn_anode;
 	RListIter *iter;
@@ -2474,25 +2486,21 @@ static int get_cgnodes(RAGraph *g, RCore *core, RAnalFunction *fcn) {
 	return true;
 }
 
-static int reload_nodes(RAGraph *g, RCore *core, RAnalFunction *fcn) {
-	int is_c = g->is_callgraph;
+static bool reload_nodes(RAGraph *g, RCore *core, RAnalFunction *fcn) {
+	const bool is_c = g->is_callgraph;
 	return is_c? get_cgnodes (g, core, fcn): get_bbnodes (g, core, fcn);
 }
 
 static void update_seek(RConsCanvas *can, RANode *n, int force) {
-	int x, y, w, h;
-	int doscroll = false;
-
 	if (!n) {
 		return;
 	}
-	x = n->x + can->sx;
-	y = n->y + can->sy;
-	w = can->w;
-	h = can->h;
+	int x = n->x + can->sx;
+	int y = n->y + can->sy;
+	int w = can->w;
+	int h = can->h;
 
-	doscroll = force || y < 0 || y + 5 > h || x + 5 > w || x + n->w + 5 < 0;
-
+	const bool doscroll = force || y < 0 || y + 5 > h || x + 5 > w || x + n->w + 5 < 0;
 	if (doscroll) {
 		if (n->w > w) { //too big for centering
 			can->sx = -n->x;
@@ -2529,8 +2537,8 @@ static const RGraphNode *find_near_of(const RAGraph *g, const RGraphNode *cur, i
 	const RGraphNode *gn, *resgn = NULL;
 	const RANode *n, *acur = cur? get_anode (cur): NULL;
 	const int default_v = is_next? INT_MIN: INT_MAX;
-	const int start_y = acur? acur->y: default_v;
 	const int start_x = acur? acur->x: default_v;
+	const int start_y = acur? acur->y: default_v;
 
 	graph_foreach_anode (nodes, it, gn, n) {
 		// tab in horizontal layout is not correct, lets force vertical nextnode for now (g->layout == 0)
@@ -3152,9 +3160,8 @@ static void agraph_set_zoom(RAGraph *g, int v) {
 /* reload all the info in the nodes, depending on the type of the graph
  * (callgraph, CFG, etc.), set the default layout for these nodes and center
  * the screen on the selected one */
-static int agraph_reload_nodes(RAGraph *g, RCore *core, RAnalFunction *fcn) {
+static bool agraph_reload_nodes(RAGraph *g, RCore *core, RAnalFunction *fcn) {
 	r_agraph_reset (g);
-
 	return reload_nodes (g, core, fcn);
 }
 
@@ -3178,7 +3185,6 @@ static void move_current_node(RAGraph *g, int xdiff, int ydiff) {
 			xdiff = NORMALIZE_MOV (xdiff);
 			ydiff = NORMALIZE_MOV (ydiff);
 		}
-
 		n->x += xdiff;
 		n->y += ydiff;
 	}
@@ -4066,23 +4072,25 @@ static const char *strstr_xy(const char *p, const char *s, int *x, int *y) {
 	}
 	const char *q;
 	int nl = 0;
-	int nc = 0;
+	int nc = *x;
 	for (q = p; q < d; q++) {
 		if (*q == '\n') {
 			nl++;
+			*x = 0;
 			nc = 0;
 		} else {
 			nc++;
 		}
 	}
-	*x = nc;
-	*y = nl;
+	*x += nc;
+	*y += nl;
 	return d;
 }
 
 static char *old_word = NULL;
 static RList *word_list = NULL;
 static int word_nth = 0;
+static int x_origin = 0;
 
 static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 	RListIter *iter;
@@ -4095,8 +4103,8 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 			pos = r_list_get_n (word_list, word_nth);
 		}
 		if (pos) {
-			can->sx = pos->x - (can->w) + 120;
-			can->sy = -pos->y;
+			can->sx = pos->x;
+			can->sy = pos->y;
 		}
 		return;
 	} else {
@@ -4106,17 +4114,20 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 	if (!*word) {
 		return;
 	}
-	char *s = r_core_cmd_strf (core, "agf");
+	char *s = r_core_cmd_strf (core, "agf@e:scr.color=0@e:scr.utf8=0");
 	r_cons_reset ();
 	int x, y;
 	char *p = s;
-	r_cons_clear00();
-	r_cons_flush();
+	r_cons_clear00 ();
+	r_cons_flush ();
 	int ox = 0;
 	int oy = 0;
 	size_t count = 0;
 	const size_t MAX_COUNT = 4096;
+	x = y = 0;
+	bool first_x = true;
 	while (true) {
+		x = 0;
 		const char *a = strstr_xy (p, word, &x, &y);
 		if (!a) {
 			break;
@@ -4125,12 +4136,20 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 		if (!pos) {
 			break;
 		}
-		pos->x = x - 1500 ;
-		pos->y = y + oy;
+		if (first_x) {
+			x_origin = x;
+			first_x = false;
+		}
+		pos->y = -y + 5;
+		if (oy == pos->y) {
+			pos->x = - (x - (ox*2) - 100);
+		} else {
+			pos->x = x_origin - x;
+		}
+		oy = pos->y;
+		ox = pos->x;
 		r_list_append (word_list, pos);
 		p = a + 1;
-		oy += y;
-		ox = x;
 		count++;
 		if (count > MAX_COUNT) {
 			break;
@@ -4139,16 +4158,6 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 	free (old_word);
 	old_word = strdup (word);
 	return nextword (core, can, word);
-#if 0
-	RPosition *pos;
-	free (s);
-	r_list_foreach (word_list, iter, pos) {
-		r_cons_printf ("> %d %d\n", pos->x, pos->y);
-	//	can->sx = can->x + pos->x;//movspeed * (invscroll? -1: 1);
-	//	can->sy = can->y + pos->y;//movspeed * (invscroll? -1: 1);
-		break;
-	}
-#endif
 }
 
 R_API int r_core_visual_graph(RCore *core, RAGraph *g, RAnalFunction *_fcn, int is_interactive) {
