@@ -1,4 +1,4 @@
-/* Copyright radare2 - 2014-2019 - pancake, ret2libc */
+/* Copyright radare2 - 2014-2020 - pancake, ret2libc */
 
 #include <r_core.h>
 #include <r_cons.h>
@@ -4083,7 +4083,6 @@ static int word_nth = 0;
 static int x_origin = 0;
 
 static void nextword(RCore *core, RConsCanvas *can, const char *word) {
-	RListIter *iter;
 	if (word_list && old_word && !strcmp (word, old_word)) {
 		RPosition *pos = r_list_get_n (word_list, word_nth);
 		if (pos) {
@@ -4104,10 +4103,20 @@ static void nextword(RCore *core, RConsCanvas *can, const char *word) {
 	if (!*word) {
 		return;
 	}
-	char *s = r_core_cmd_strf (core, "agf@e:scr.color=0@e:scr.utf8=0");
-	r_cons_reset ();
+	char *s;
+	{
+		int c = r_config_get_i (core->config, "scr.color");
+		int u = r_config_get_i (core->config, "scr.utf8");
+		r_config_set_i (core->config, "scr.color", 0);
+		r_config_set_i (core->config, "scr.utf8", 0);
+		r_core_visual_graph (core, NULL, NULL, false);
+		s = strdup (r_cons_get_buffer ());
+		r_cons_reset ();
+		r_config_set_i (core->config, "scr.color", c);
+		r_config_set_i (core->config, "scr.utf8", u);
+	}
 	int x, y;
-	char *p = s;
+	const char *p = s;
 	r_cons_clear00 ();
 	r_cons_flush ();
 	int ox = 0;
