@@ -225,8 +225,8 @@ static char *canvas_string(RConsCanvas *c, size_t pos) {
 		return NULL;
 	}
 	char *p = s;
-	int ox = c->x; //> 0? 0: -c->sx;
-	int oy = c->y;//> 0? 0: -c->sy;
+	int ox = c->x;
+	int oy = c->y;
 	for (y = oy; y < c->h; y ++) {
 		for (x = y==oy?ox:0; x < c->w; x ++) {
 			char ch = c->b[y][x];
@@ -238,19 +238,8 @@ static char *canvas_string(RConsCanvas *c, size_t pos) {
 			} else {
 				*p = c->b[y][x];
 			}
-#if 0
-			if (ch) {
-				if (pos > 0) {
-					pos--;
-					continue;
-				}
-				*p++ = ch;
-			}
-#endif
 		}
 	}
-eprintf ("(%s)\n", s);
-sleep (3);
 	return s;
 }
 
@@ -273,8 +262,6 @@ static int count_newlines(char *s, size_t len, size_t *col) {
 }
 
 R_API void r_cons_canvas_nextword(RConsCanvas *c, const char *word) {
-	int pos = 0;
-	// char *s = r_cons_canvas_to_string (c);
 	char *s = canvas_string (c, 0);
 	if (!s) {
 		return;
@@ -292,13 +279,10 @@ R_API void r_cons_canvas_nextword(RConsCanvas *c, const char *word) {
 		p++;
 	}
 	char *d = strstr (p, word);
-// r_file_dump ("/tmp/a.txt", s, strlen (s), false);
 	if (d) {
 		*d = 0;
-		size_t delta = d - s;
-		size_t newpos = pos + delta;
-		int new_x = 0;
-		int new_y = c->sy - count_newlines (s, strlen (s), &new_x);
+		size_t new_x = 0;
+		size_t new_y = c->sy - count_newlines (s, strlen (s), &new_x);
 		c->sx -= (new_x - c->x);
 		c->sy = new_y + 3;
 	}
